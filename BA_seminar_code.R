@@ -1,3 +1,11 @@
+###error 처리
+#Error: invalid multibyte character in parser at line 1뜰 때
+#Sys.setlocale(category="LC_ALL",locale="us")
+
+###############################################################################
+################raw data불러와서 영화별로 data.frame생성#######################
+###############################################################################
+
 ##default path : "C:/Users/samsung/Documents/dt/BA_seminar"
 library(rvest)
 library(xml2)
@@ -8,7 +16,7 @@ filename<-readLines("filenames.txt")
 datalist<-list()
 titleset<-c()
 for (i in 1:length(filename)){
-  data=read.csv(filename[i],header = T)
+  data=read.csv(filename[i],header = T,fileEncoding = "euc-kr")
   coln=data[1,]
   colname = c()
   for (j in 1:length(coln)){
@@ -22,7 +30,11 @@ for (i in 1:length(filename)){
   titleset<-c(titleset,title)
 }
 names(datalist)<-titleset
-#moviedaily 전처리
+#######################################################################################
+###################영화별 데이터(datalist)전처리-요일별 구분###########################
+#######################################################################################
+
+###개봉일 요일별로 구분
 library("stringr")
 for (i in 1:length(datalist)){ 
   if(str_detect(datalist[[i]][,1],"/")==TRUE){
@@ -37,8 +49,39 @@ for (i in 1:length(datalist)){
   if (datalist[[i]]$요일[1]=="수요일"){
     wednesday[[names(datalist)[i]]]<-datalist[[i]]
   }
-  
 }
+
+################################################################################################
+##################수요일 개봉 영화만 모아서 -> 관람객데이터 시계열plotting####################
+################################################################################################
+audience<-data.frame(init=c(1:14))
+for (i in 1:length(wednesday)){
+  sub_audience<-wednesday[[i]][,11]
+  audience<-cbind(audience,sub_audience)
+}
+audience<-audience[,-1]
+colnames(audience)<-names(wednesday)
+ 
+audience= apply(audience,1,gsub,pattern=",",replace="")
+audience= apply(audience,1,as.numeric)
+
+
+dist<-dist(scale(t(audience)))
+cmd<-cmdscale(dist)
+## pre handling
+audi_scale<-scale(audience)
+km<-kmeans(t(audi_scale),3)
+km<-km$cluster
+plot(audi_scale[,1],type = "l",ylim = c(-1,2.5),col=km[1])
+for (i in 2:ncol(audi_scale)){
+  lines(audi_scale[,i],col=km[i])
+}
+lines(x=seq(0,20,0.1),y=rep(0,201))
+
+plot(cmd,col=km) 
+text(cmd[,1],cmd[,2],rownames(cmd),col=km)
+
+
 
 x<-strsplit(names(tb), split=" ")
 x0<-list()
